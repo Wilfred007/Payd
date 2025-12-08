@@ -5,8 +5,9 @@ import '@rainbow-me/rainbowkit/styles.css'
 import { WagmiProvider, http } from 'wagmi'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { celoAlfajores } from 'viem/chains'
-import App from './App'
+// import App from './App'
 import './index.css'
+import App from './App'
 
 const config = getDefaultConfig({
   appName: 'Payroll cUSD',

@@ -4,6 +4,11 @@ import DepositForm from './DepositForm'
 import RunPayroll from './RunPayroll'
 import Employees from './Employees'
 import History from './History'
+// import BalanceCard from './BalanceCard'
+// import DepositForm from './DepositForm'
+// import RunPayroll from './RunPayroll'
+// import Employees from './Employees'
+// import History from './History'
 
 export default function Dashboard() {
   return (
