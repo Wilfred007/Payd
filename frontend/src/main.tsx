@@ -14,7 +14,7 @@ const config = getDefaultConfig({
   projectId: 'WALLETCONNECT_PROJECT_ID_PLACEHOLDER',
   chains: [celoAlfajores],
   transports: {
-    [celoAlfajores.id]: http('https://celo-alfajores.gateway.fm'),
+    [celoAlfajores.id]: http('https://celo-sepolia.g.alchemy.com/v2/GC8MPc6eOMfT1cJmmQawV'),
   },
 })
 
