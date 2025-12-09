@@ -12,6 +12,7 @@ export default function History() {
   const [toDate, setToDate] = useState<string>('')     // datetime-local value
   const [rows, setRows] = useState<Array<{ wallet: string, amount: string, timestamp: number, txHash: string, txRef?: string, blockNumber?: number }>>([])
   const [loading, setLoading] = useState(false)
+  const [uiError, setUiError] = useState<string | null>(null)
 
   useEffect(() => {
     let mounted = true
@@ -35,15 +36,24 @@ export default function History() {
   const load = async () => {
     if (!client) return
     setLoading(true)
+    setUiError(null)
     try {
       // Determine approximate block window from selected date range
-      const latestBlock = Number(await client.getBlockNumber())
       const nowSec = Math.floor(Date.now() / 1000)
       const fromSec = fromDate ? Math.floor(new Date(fromDate).getTime() / 1000) : nowSec - 30 * 24 * 60 * 60
       const toSec = toDate ? Math.floor(new Date(toDate).getTime() / 1000) : nowSec
       const rangeSec = Math.max(0, toSec - fromSec)
       // Assume ~5s block time on Celo Alfajores; clamp range to keep RPC happy
-      const approxBlocks = Math.min(500_000, Math.max(50_000, Math.ceil(rangeSec / 5) + 10_000))
+      const approxBlocks = Math.min(300_000, Math.max(10_000, Math.ceil(rangeSec / 5) + 5_000))
+
+      let latestBlock: number
+      try {
+        latestBlock = Number(await client.getBlockNumber())
+      } catch (e: any) {
+        setUiError('Network is slow or unavailable. Please try a shorter date range or click Refresh again.')
+        return
+      }
+
       const fromBlock = BigInt(Math.max(0, latestBlock - approxBlocks))
       const toBlock = BigInt(latestBlock)
 
@@ -62,12 +72,11 @@ export default function History() {
         blockNumber: l.blockNumber ? Number(l.blockNumber) : undefined,
       })).reverse()
       // Filter by selected date range using the event timestamp
-      const filtered = parsedAll.filter(r => {
-        return r.timestamp >= fromSec && r.timestamp <= toSec
-      })
+      const filtered = parsedAll.filter(r => r.timestamp >= fromSec && r.timestamp <= toSec)
       setRows(filtered)
     } catch (e) {
       console.error(e)
+      setUiError('Failed to load history. Please try again or reduce the date range.')
     } finally {
       setLoading(false)
     }
@@ -119,6 +128,10 @@ export default function History() {
           <button className="btn btn-outline" onClick={load} disabled={loading}>{loading ? 'Loading…' : 'Refresh'}</button>
         </div>
       </div>
+
+      {uiError && (
+        <div className="mb-3 text-sm text-yellow-400">{uiError}</div>
+      )}
 
       <div className="overflow-x-auto">
         <table className="w-full text-sm">
