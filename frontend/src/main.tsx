@@ -17,8 +17,8 @@ const config = getDefaultConfig({
   chains: [celoAlfajores],
   transports: {
     [celoAlfajores.id]: http('https://alfajores-forno.celo-testnet.org', {
-      timeout: 15000,
-      retryCount: 2,
+      timeout: 30000,
+      retryCount: 4,
     }),
   },
 })
