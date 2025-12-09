@@ -8,20 +8,27 @@ const eventItem = parseAbiItem('event PayrollPaid(address indexed wallet, uint25
 
 export default function History() {
   const client = usePublicClient()
-  const [fromBlock, setFromBlock] = useState<number>(0)
-  const [toBlock, setToBlock] = useState<number>(0)
+  const [fromDate, setFromDate] = useState<string>('') // datetime-local value
+  const [toDate, setToDate] = useState<string>('')     // datetime-local value
   const [rows, setRows] = useState<Array<{ wallet: string, amount: string, timestamp: number, txHash: string, txRef?: string, blockNumber?: number }>>([])
   const [loading, setLoading] = useState(false)
 
   useEffect(() => {
     let mounted = true
-    async function initBlocks() {
-      const latest = Number(await client!.getBlockNumber())
+    async function initDefaults() {
+      // default to last 30 days
+      const now = new Date()
+      const past = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000)
+      const to = new Date(now.getTime() - now.getSeconds() * 1000) // strip seconds for nicer input
+      const fmt = (d: Date) => {
+        const pad = (n: number) => n.toString().padStart(2, '0')
+        return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`
+      }
       if (!mounted) return
-      setToBlock(latest)
-      setFromBlock(Math.max(0, latest - 200_000)) // ~safe default window
+      setFromDate(fmt(past))
+      setToDate(fmt(to))
     }
-    if (client) initBlocks()
+    if (client) initDefaults()
     return () => { mounted = false }
   }, [client])
 
@@ -29,13 +36,24 @@ export default function History() {
     if (!client) return
     setLoading(true)
     try {
+      // Determine approximate block window from selected date range
+      const latestBlock = Number(await client.getBlockNumber())
+      const nowSec = Math.floor(Date.now() / 1000)
+      const fromSec = fromDate ? Math.floor(new Date(fromDate).getTime() / 1000) : nowSec - 30 * 24 * 60 * 60
+      const toSec = toDate ? Math.floor(new Date(toDate).getTime() / 1000) : nowSec
+      const rangeSec = Math.max(0, toSec - fromSec)
+      // Assume ~5s block time on Celo Alfajores; clamp range to keep RPC happy
+      const approxBlocks = Math.min(500_000, Math.max(50_000, Math.ceil(rangeSec / 5) + 10_000))
+      const fromBlock = BigInt(Math.max(0, latestBlock - approxBlocks))
+      const toBlock = BigInt(latestBlock)
+
       const logs = await client.getLogs({
         address: CONTRACT_ADDRESS as `0x${string}`,
         events: [eventItem],
-        fromBlock: BigInt(fromBlock),
-        toBlock: BigInt(toBlock),
+        fromBlock,
+        toBlock,
       })
-      const parsed = logs.map((l) => ({
+      const parsedAll = logs.map((l) => ({
         wallet: (l.args as any).wallet as string,
         amount: formatUnits((l.args as any).amount as bigint, 18),
         timestamp: Number((l.args as any).timestamp),
@@ -43,7 +61,11 @@ export default function History() {
         txRef: ((l.args as any).txRef as string) ?? undefined,
         blockNumber: l.blockNumber ? Number(l.blockNumber) : undefined,
       })).reverse()
-      setRows(parsed)
+      // Filter by selected date range using the event timestamp
+      const filtered = parsedAll.filter(r => {
+        return r.timestamp >= fromSec && r.timestamp <= toSec
+      })
+      setRows(filtered)
     } catch (e) {
       console.error(e)
     } finally {
@@ -51,7 +73,7 @@ export default function History() {
     }
   }
 
-  useEffect(() => { if (fromBlock && toBlock) { load() } }, [fromBlock, toBlock])
+  useEffect(() => { if (fromDate && toDate) { load() } }, [fromDate, toDate])
 
   const downloadReceipt = (r: { wallet: string, amount: string, timestamp: number, txHash: string, txRef?: string, blockNumber?: number }) => {
     const doc = new jsPDF()
@@ -86,12 +108,12 @@ export default function History() {
       <div className="section-title">Payroll History</div>
       <div className="grid md:grid-cols-3 gap-3 mb-3">
         <div>
-          <div className="label">From block</div>
-          <input className="input" type="number" value={fromBlock} onChange={e => setFromBlock(Number(e.target.value))} />
+          <div className="label">From (UTC)</div>
+          <input className="input" type="datetime-local" value={fromDate} onChange={e => setFromDate(e.target.value)} />
         </div>
         <div>
-          <div className="label">To block</div>
-          <input className="input" type="number" value={toBlock} onChange={e => setToBlock(Number(e.target.value))} />
+          <div className="label">To (UTC)</div>
+          <input className="input" type="datetime-local" value={toDate} onChange={e => setToDate(e.target.value)} />
         </div>
         <div className="flex items-end">
           <button className="btn btn-outline" onClick={load} disabled={loading}>{loading ? 'Loading…' : 'Refresh'}</button>

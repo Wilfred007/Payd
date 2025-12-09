@@ -2,7 +2,7 @@ import React from 'react'
 import ReactDOM from 'react-dom/client'
 import { getDefaultConfig, RainbowKitProvider, lightTheme } from '@rainbow-me/rainbowkit'
 import '@rainbow-me/rainbowkit/styles.css'
-import { WagmiProvider, http, fallback } from 'wagmi'
+import { WagmiProvider, http } from 'wagmi'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { celoAlfajores } from 'viem/chains'
 // import App from './App'
@@ -16,11 +16,10 @@ const config = getDefaultConfig({
   projectId,
   chains: [celoAlfajores],
   transports: {
-    [celoAlfajores.id]: fallback([
-      http('https://alfajores-forno.celo-testnet.org'),
-      http('https://rpc.ankr.com/celo_alfajores'),
-      http('https://celo-alfajores.blockpi.network/v1/rpc/public'),
-    ]),
+    [celoAlfajores.id]: http('https://alfajores-forno.celo-testnet.org', {
+      timeout: 15000,
+      retryCount: 2,
+    }),
   },
 })
 
