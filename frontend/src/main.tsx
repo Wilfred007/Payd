@@ -2,19 +2,25 @@ import React from 'react'
 import ReactDOM from 'react-dom/client'
 import { getDefaultConfig, RainbowKitProvider, lightTheme } from '@rainbow-me/rainbowkit'
 import '@rainbow-me/rainbowkit/styles.css'
-import { WagmiProvider, http } from 'wagmi'
+import { WagmiProvider, http, fallback } from 'wagmi'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { celoAlfajores } from 'viem/chains'
 // import App from './App'
 import './index.css'
 import App from './App'
 
+const projectId = import.meta.env.VITE_WC_PROJECT_ID
+
 const config = getDefaultConfig({
   appName: 'Payroll cUSD',
-  projectId: 'WALLETCONNECT_PROJECT_ID_PLACEHOLDER',
+  projectId,
   chains: [celoAlfajores],
   transports: {
-    [celoAlfajores.id]: http('https://celo-sepolia.g.alchemy.com/v2/GC8MPc6eOMfT1cJmmQawV'),
+    [celoAlfajores.id]: fallback([
+      http('https://alfajores-forno.celo-testnet.org'),
+      http('https://rpc.ankr.com/celo_alfajores'),
+      http('https://celo-alfajores.blockpi.network/v1/rpc/public'),
+    ]),
   },
 })
 
