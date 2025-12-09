@@ -14,6 +14,16 @@ export default function History() {
   const [loading, setLoading] = useState(false)
   const [uiError, setUiError] = useState<string | null>(null)
 
+  // simple retry helper
+  const retry = async <T,>(fn: () => Promise<T>, attempts = 3, delayMs = 800): Promise<T> => {
+    let lastErr: any
+    for (let i = 0; i < attempts; i++) {
+      try { return await fn() } catch (e) { lastErr = e }
+      await new Promise(res => setTimeout(res, delayMs * (i + 1)))
+    }
+    throw lastErr
+  }
+
   useEffect(() => {
     let mounted = true
     async function initDefaults() {
@@ -48,7 +58,7 @@ export default function History() {
 
       let latestBlock: number
       try {
-        latestBlock = Number(await client.getBlockNumber())
+        latestBlock = await retry(async () => Number(await client.getBlockNumber()), 4, 700)
       } catch (e: any) {
         setUiError('Network is slow or unavailable. Please try a shorter date range or click Refresh again.')
         return
@@ -57,12 +67,13 @@ export default function History() {
       const fromBlock = BigInt(Math.max(0, latestBlock - approxBlocks))
       const toBlock = BigInt(latestBlock)
 
-      const logs = await client.getLogs({
+      const logs = await retry(() => client.getLogs({
         address: CONTRACT_ADDRESS as `0x${string}`,
         events: [eventItem],
         fromBlock,
         toBlock,
-      })
+      }), 3, 700)
+
       const parsedAll = logs.map((l) => ({
         wallet: (l.args as any).wallet as string,
         amount: formatUnits((l.args as any).amount as bigint, 18),
@@ -82,7 +93,12 @@ export default function History() {
     }
   }
 
-  useEffect(() => { if (fromDate && toDate) { load() } }, [fromDate, toDate])
+  // Debounce auto-load on date changes to avoid hammering RPC
+  useEffect(() => {
+    if (!fromDate || !toDate) return
+    const t = setTimeout(() => { load() }, 400)
+    return () => clearTimeout(t)
+  }, [fromDate, toDate])
 
   const downloadReceipt = (r: { wallet: string, amount: string, timestamp: number, txHash: string, txRef?: string, blockNumber?: number }) => {
     const doc = new jsPDF()
