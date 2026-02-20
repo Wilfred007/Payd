@@ -7,6 +7,21 @@ import { WalletProvider } from "./providers/WalletProvider.tsx";
 import { NotificationProvider } from "./providers/NotificationProvider.tsx";
 import { BrowserRouter } from "react-router-dom";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import * as Sentry from "@sentry/react";
+import ErrorBoundary from "./components/ErrorBoundary.tsx";
+
+Sentry.init({
+  dsn: import.meta.env.VITE_SENTRY_DSN || "https://placeholder-dsn@sentry.io/123",
+  integrations: [
+    Sentry.browserTracingIntegration(),
+    Sentry.replayIntegration(),
+  ],
+  // Performance Monitoring
+  tracesSampleRate: 1.0,
+  // Session Replay
+  replaysSessionSampleRate: 0.1,
+  replaysOnErrorSampleRate: 1.0,
+});
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -23,7 +38,9 @@ createRoot(document.getElementById("root") as HTMLElement).render(
       <QueryClientProvider client={queryClient}>
         <WalletProvider>
           <BrowserRouter>
-            <App />
+            <ErrorBoundary>
+              <App />
+            </ErrorBoundary>
           </BrowserRouter>
         </WalletProvider>
       </QueryClientProvider>
